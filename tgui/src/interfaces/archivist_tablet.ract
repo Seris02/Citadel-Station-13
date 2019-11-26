@@ -1,0 +1,13 @@
+<ui-display title='Archivist Tablet'>
+	<ui-section label='Yellowspace Charges' right>
+		<span class='{{data.charges > 0 ? "good" : "bad"}}'>{{data.charges}} charges</span>
+	</ui-section>
+</ui-display>
+<ui-display>
+	{{#each data.items}}
+		<ui-section label='{{{name}}}' right>
+			<ui-button tooltip='{{{desc}}}' action='take' params='{"item": {{{name}}}}'>Teleport In</ui-button>
+		</ui-section>
+	{{/each}}
+ </ui-display>
+

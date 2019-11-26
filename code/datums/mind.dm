@@ -205,6 +205,9 @@
 /datum/mind/proc/remove_traitor()
 	remove_antag_datum(/datum/antagonist/traitor)
 
+/datum/mind/proc/remove_archivist()
+	remove_antag_datum(/datum/antagonist/archivist)
+
 /datum/mind/proc/remove_brother()
 	if(src in SSticker.mode.brothers)
 		remove_antag_datum(/datum/antagonist/brother)
@@ -247,6 +250,7 @@
 	remove_nukeop()
 	remove_wizard()
 	remove_cultist()
+	remove_archivist()
 	remove_rev()
 	SSticker.mode.update_cult_icons_removed(src)
 
@@ -616,6 +620,10 @@
 		C = add_antag_datum(/datum/antagonist/changeling)
 		special_role = ROLE_CHANGELING
 	return C
+
+/datum/mind/proc/make_Archivist()
+	if(!(has_antag_datum(/datum/antagonist/archivist)))
+		add_antag_datum(/datum/antagonist/archivist)
 
 /datum/mind/proc/make_Wizard()
 	if(!has_antag_datum(/datum/antagonist/wizard))

@@ -195,3 +195,9 @@
 	name = "City of Cogs"
 	icon_state = "purple"
 	hidden = FALSE
+
+/area/archivist
+	name = "infi\[err&aArch*"
+	icon_state = "yellow"
+	requires_power = FALSE
+	has_gravity = STANDARD_GRAVITY

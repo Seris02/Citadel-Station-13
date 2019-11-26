@@ -81,6 +81,10 @@
 	config_entry_value = 6
 	min_val = 1
 
+/datum/config_entry/number/archivist_scaling_coeff	//how much does the amount of players get divided by to determine archivists
+	config_entry_value = 6
+	min_val = 1
+
 /datum/config_entry/number/brother_scaling_coeff	//how many players per brother team
 	config_entry_value = 25
 	min_val = 1

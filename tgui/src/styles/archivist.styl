@@ -1,0 +1,30 @@
+body.archivist
+  color-good               = #F7AC34
+  color-highlight          = black
+  background-color-start   = #F7AC34
+  background-color-end     = #DB911A
+  rule-color-normal        = dark-gray
+  titlebar-color-text      = #F7AC34
+  titlebar-color-button    = #F7AC34
+  display-color-background = alpha(#000, 0.5)
+  display-color-shadow     = alpha(#000, 0.75)
+  notice-color-first       = #F7AC34
+  notice-color-second      = #FCB542
+  section-color-label      = white
+  bar-color-normal         = black
+  bar-color-good           = #F7AC34
+  bar-color-border         = black
+  button-color-normal      = #DB911A
+  button-color-disabled    = gray
+  button-color-selected    = #DB911A
+  button-color-caution     = yellow-orange
+  button-color-danger      = yellow
+  input-color-text         = white
+  input-color-background   = #DB911A
+
+  background: data-url('images/archivist.svg') no-repeat fixed center/70% 70%,
+    linear-gradient(to bottom,
+      background-color-start 0%,
+      background-color-end 100%)
+  @import "util/*"
+  @import "components/*"
