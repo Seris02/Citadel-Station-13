@@ -11,6 +11,11 @@
 	archivist_items = list()
 	archivist_paths = list()
 	var/list/archivist_tools = subtypesof(/obj/item/archivist_tool)
+	for (var/A in archivist_tools)
+		var/obj/item/archivist_tool/I = new A
+		if (I.includeinlist == FALSE)
+			archivist_tools -= A
+		qdel(I)
 	archivist_tools += /obj/item/card/id/archivist
 	archivist_tools += /obj/item/clothing/gloves/paralysis
 	for (var/A in archivist_tools)

@@ -18,8 +18,7 @@
 /obj/item/archivist_tool/tele
 	name = "archivist teleporter"
 	desc = "For when you've accomplished the tasks you set out to do and need to store precious relics."
-	icon_state = "hand_tele"
-	icon = 'icons/obj/device.dmi'
+	icon_state = "tele"
 	item_state = "electronic"
 	lefthand_file = 'icons/mob/inhands/misc/devices_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/misc/devices_righthand.dmi'
@@ -28,15 +27,18 @@
 /obj/item/archivist_tool/tele/attack_self(mob/user)
 	if (user)
 		if (isarchivist(user))
-			to_chat(user, "<span class='warning'>You inject yourself with the [src].</span>")
-			flash_lighting_fx(9, 9, LIGHT_COLOR_ORANGE)
-			do_teleport(user,locate(111,156,1),channel=null,forced=TRUE)
+			icon_state = "tele0"
+			addtimer(CALLBACK(src,.proc/start_anim,user),26)
+
+/obj/item/archivist_tool/tele/proc/start_anim(mob/user)
+	icon_state = "tele1"
+	flash_lighting_fx(9, 9, LIGHT_COLOR_ORANGE)
+	do_teleport(user,locate(111,156,1),channel=null,forced=TRUE)
 
 /obj/item/archivist_tool/injector
 	name = "yellowspace injector"
 	desc = "It's an injector that allows you to escape from any foe by tapping into the yellowspace network."
-	icon = 'icons/obj/syringe.dmi'
-	icon_state = "medipen"
+	icon_state = "yellowinjector"
 	item_state = "medipen"
 	lefthand_file = 'icons/mob/inhands/equipment/medical_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/equipment/medical_righthand.dmi'
@@ -47,6 +49,7 @@
 	if (M == user && usedup == FALSE)
 		if (isarchivist(user))
 			var/turf/open/floor/F = find_safe_turf(extended_safety_checks=TRUE)
+			to_chat(user, "<span class='warning'>You inject yourself with the [src].</span>")
 			flash_lighting_fx(9, 9, LIGHT_COLOR_ORANGE)
 			do_teleport(user,F,channel=null,forced=TRUE)
 			icon_state = "[icon_state]0"
@@ -61,33 +64,39 @@
 	icon_state = "sleepbaton0"
 	var/uses = 3
 
-/obj/item/archivist_tool/sleeperbaton/attack(mob/target,mob/user)
+/obj/item/archivist_tool/sleeperbaton/attack(mob/t,mob/user)
 	if (uses <= 0)
-		to_chat(user, "<span class='warning'>The [src] has no uses remaining!</span>")
-	if (isliving(target) && !target.IsSleeping())
-		playsound(loc,'sound/weapons/egloves.ogg',50,1,-1)
-		to_chat(target, "<span class='userdanger'>You forget <b>everything</b> you know about [user]!</span>")
-		target.Sleeping(15 SECONDS)
-		uses--
-		icon_state = "sleepbaton[3-uses]"
+		to_chat(user, "<span class='warning'>The [src.name] has no uses remaining!</span>")
+	if (isliving(t))
+		var/mob/living/target = t
+		if (!target.IsSleeping())
+			playsound(loc,'sound/weapons/egloves.ogg',50,1,-1)
+			to_chat(target, "<span class='userdanger'>You forget <b>everything</b> you know about [user]!</span>")
+			target.Sleeping(15 SECONDS)
+			uses--
+			icon_state = "sleepbaton[3-uses]"
 
 /obj/item/clothing/gloves/paralysis
 	name = "paralysis gloves"
 	desc = "These will paralyze anyone you touch with them for a few seconds, giving you quick escapes."
+	icon_state = "paralysis"
+	item_state = "paralysisgloves"
 	var/power = 1
 	var/recharging = FALSE
 
 /obj/item/clothing/gloves/paralysis/Touch(mob/living/target,proximity=TRUE)
 	if (!istype(target))
 		return
-	if (recharging == TRUE)
-		to_chat(user, "<span class='warning'>The [src] is recharging, they can't be used.</span>")
-		return
 	var/mob/living/M = loc
+	if (recharging == TRUE)
+		to_chat(M, "<span class='warning'>The [src.name] are recharging, they can't be used.</span>")
+		return
 	if (M.a_intent == INTENT_HARM)
+		playsound(loc,'sound/weapons/egloves.ogg',50,1,-1)
 		target.Stun(200*power)
+		target.visible_message("<span class='danger'>[M] stuns [target] with the [src.name]!</span>","<span class='danger'>[M] has stunned you with the [src.name]!</span>")
 		power -= 0.05
-		if (power == 0)
+		if (power <= 0)
 			icon_state = "paralysisnopower"
 			desc = "[desc]\nThey seem to be out of charge."
 			recharging = TRUE
@@ -114,3 +123,4 @@
 	name = "archivist_tool"
 	desc = "desc"
 	icon = 'icons/obj/archivist.dmi'
+	var/includeinlist = TRUE

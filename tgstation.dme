@@ -1203,6 +1203,7 @@
 #include "code\modules\antagonists\abductor\machinery\pad.dm"
 #include "code\modules\antagonists\archivist\archivist.dm"
 #include "code\modules\antagonists\archivist\archivist_items.dm"
+#include "code\modules\antagonists\archivist\archivist_staff.dm"
 #include "code\modules\antagonists\archivist\archivist_tablet.dm"
 #include "code\modules\antagonists\blob\blob.dm"
 #include "code\modules\antagonists\blob\blob\blob_report.dm"
