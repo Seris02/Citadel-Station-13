@@ -6,7 +6,7 @@
 
 /obj/item/card/id/archivist/attack_self(mob/user)
 	access = get_all_accesses()+get_all_centcom_access()+get_all_syndicate_access()
-	addtimer(CALLBACK(src,.proc/erase,user),2 MINUTES)
+	addtimer(CALLBACK(src,.proc/erase,user),1 MINUTES)
 	to_chat(user, "<span class='warning'>The [src] starts shaking violently as it uses up the yellowspace crystals embedded on it's surface.</span>")
 	icon_state = "[icon_state]0"
 

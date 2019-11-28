@@ -1,8 +1,10 @@
 #define EFFECT_STAFF_STUN "stun"
 #define EFFECT_STAFF_REPULSE "repulse"
+#define EFFECT_STAFF_ATTRACTION "attraction"
 #define EFFECT_STAFF_SLEEP "sleep"
 #define EFFECT_STAFF_TELEPORT "teleport"
 #define EFFECT_STAFF_PEACE "peace"
+#define EFFECT_STAFF_HALLUCINOGEN "hallucinogen"
 
 #define TARGET_STAFF_SINGLE "single"
 #define TARGET_STAFF_AOE "aoe"
@@ -24,6 +26,7 @@
 	var/staffeffect = WIELD_STAFF_SINGLEHAND
 	var/mustbewielded = FALSE
 	var/changeicon = FALSE
+	var/cooldown = FALSE
 	includeinlist = FALSE //testing
 	/*
 		top: major effect eg repulse, stun, sleep
@@ -32,6 +35,7 @@
 	*/
 	var/obj/item/archivist_tool/stafftop/top = null
 	var/obj/item/archivist_tool/staffbase/base = null
+	var/obj/item/archivist_tool/staffacc/acc = null
 
 /obj/item/archivist_tool/archivist_staff/attackby(obj/item/A, mob/user, params)
 	if (istype(A,/obj/item/archivist_tool/stafftop))
@@ -43,6 +47,12 @@
 	if (istype(A,/obj/item/archivist_tool/staffbase))
 		if (!base)
 			base = A
+			update_icon()
+			A.moveToNullspace()
+			to_chat(user, "<span class='notice'>You add the [A.name] to the [src.name].</span>")
+	if (istype(A,/obj/item/archivist_tool/staffacc))
+		if (!acc)
+			acc = A
 			update_icon()
 			A.moveToNullspace()
 			to_chat(user, "<span class='notice'>You add the [A.name] to the [src.name].</span>")
@@ -60,6 +70,9 @@
 	if (base)
 		var/mutable_appearance/M = base.get_staff_overlay()
 		add_overlay(M)
+	if (acc)
+		var/mutable_appearance/M = acc.get_staff_overlay()
+		add_overlay(M)
 	..()
 
 /obj/item/archivist_tool/archivist_staff/Initialize()
@@ -71,15 +84,23 @@
 		return (canbewielded == TRUE && iswielded == TRUE) ? wieldedamp  * poweramp : poweramp
 	return 0
 
-/obj/item/archivist_tool/archivist_staff/proc/getfulleffect(mob/target,mob/user)
+/obj/item/archivist_tool/archivist_staff/proc/getfulleffect(mob/target,mob/user,acceffect)
 	var/power = getpower()
 	if (power == 0)
 		return
-	var/list/mobs = base.get_mobs(target,user)
 	playsound(loc,'sound/weapons/staffwave.ogg',50,1,-1)
+	if (acc)
+		power = acc.get_power_override(target,power,user,src,acceffect)
+		if (power == 0)
+			return
+	var/list/mobs = base.get_mobs(target,user)
 	for (var/G in mobs)
 		top.effect_on_target(G,power*base.get_dampen(),user)
+	cooldown = TRUE
+	addtimer(CALLBACK(src,.proc/stopcooldown),15)
 
+/obj/item/archivist_tool/archivist_staff/proc/stopcooldown()
+	cooldown = FALSE
 
 /obj/item/archivist_tool/archivist_staff/proc/unwield(mob/living/carbon/user)
 	if (!iswielded || !user) //copied, but it's edited
@@ -91,6 +112,7 @@
 		O.unwield()
 	if (changeicon == TRUE)
 		icon_state = initial(icon_state)
+		update_icon()
 
 /obj/item/archivist_tool/archivist_staff/proc/wield(mob/living/carbon/user)
 	if (iswielded || !canbewielded)
@@ -108,6 +130,7 @@
 	user.put_in_inactive_hand(O)
 	if (changeicon == TRUE)
 		icon_state = "[icon_state]0"
+		update_icon()
 
 /obj/item/archivist_tool/archivist_staff/dropped(mob/user)
 	. = ..()
@@ -124,14 +147,22 @@
 	..()
 	if (!iswielded)
 		wield(user)
+		return
 	if (iswielded)
 		unwield(user)
+		return
+
+/obj/item/archivist_tool/archivist_staff/CtrlClick(mob/user)
+	..()
+	if (acc)
+		acc.specialaction()
 
 /obj/item/archivist_tool/archivist_staff/attack_self(mob/user)
-	getfulleffect(null,user)
+	getfulleffect(null,user,0)
 
 /obj/item/archivist_tool/archivist_staff/attack(mob/living/carbon/M,mob/living/carbon/user)
-	getfulleffect(M,user)
+	if (!cooldown)
+		getfulleffect(M,user,0)
 
 
 //PARTS
@@ -167,6 +198,33 @@
 /obj/item/archivist_tool/staffbase/proc/get_mobs(mob/target,mob/user)
 	return
 
+/obj/item/archivist_tool/staffacc
+	name = "normal staff addition"
+	desc = "error 404 addon not found"
+	icon_state = "coderacc"
+	var/staffname = "coder"
+	var/poweroverride = 1
+	var/mob/user
+	var/mob/target
+
+/obj/item/archivist_tool/staffacc/proc/get_staff_overlay()
+	return mutable_appearance('icons/obj/archivist.dmi', "[staffname]acc0")
+
+/obj/item/archivist_tool/staffacc/proc/get_power_override(mob/target,power,mob/user,var/obj/item/archivist_tool/archivist_staff/staff,acceffect)
+	return power
+
+/obj/item/archivist_tool/staffacc/proc/specialaction()
+	return
+
+
+
+/*TODOD:
+
+
+
+*/
+//PARTS
+
 /obj/item/archivist_tool/stafftop/stun
 	name = "stun staff top"
 	icon_state = "stuntop"
@@ -192,6 +250,18 @@
 /obj/item/archivist_tool/stafftop/repulse/effect_on_target(mob/target,power,mob/user)
 	var/atom/F = get_edge_target_turf(target,get_dir(user,get_step_away(target,user)))
 	target.throw_at(F,round(10*power),1)
+
+/obj/item/archivist_tool/stafftop/attract
+	name = "attraction staff top"
+	icon_state = "attractiontop"
+	staffname = "attraction"
+	desc = "A top for attraction forces on an archivist's staff."
+	staffeffect = EFFECT_STAFF_ATTRACTION
+	includeinlist = TRUE //testing
+
+/obj/item/archivist_tool/stafftop/attract/effect_on_target(mob/target,power,mob/user)
+	var/atom/F = get_edge_target_turf(target,get_dir(user,get_step_away(user,target)))
+	target.throw_at(F,min(round(10*power),get_dist(user,target) - 1),1)
 
 /obj/item/archivist_tool/stafftop/sleep
 	name = "sleep staff top"
@@ -230,6 +300,28 @@
 
 /obj/item/archivist_tool/stafftop/peace/effect_on_target(mob/target,power,mob/user)
 	target.reagents.add_reagent("pax",(10*power))
+
+/obj/item/archivist_tool/stafftop/hallucination
+	name = "hallucinogenic staff top"
+	icon_state = "hallucinogenictop"
+	staffname = "hallucinogenic"
+	desc = "A top for forcing hallucinations in targets on an archivists's staff."
+	staffeffect = EFFECT_STAFF_HALLUCINOGEN
+	includeinlist = TRUE //testing
+	var/hallucinations = list(/datum/hallucination/stray_bullet,/datum/hallucination/fire,/datum/hallucination/oh_yeah,/datum/hallucination/shock,/datum/hallucination/death)
+
+/obj/item/archivist_tool/stafftop/hallucination/effect_on_target(mob/target,power,mob/user)
+	//new /datum/hallucination/oh_yeah(target)
+	var/index = round(4*power) + 1
+	var/low = index - 2
+	if (low < 1)
+		low = 1
+	if (index < 1)
+		index = 1
+	if (index > 5)
+		index = 5
+	var/H = hallucinations[rand(low,index)]
+	new H(target)
 
 /obj/item/archivist_tool/archivist_staff/single
 	name = "single-handed staff handle"
@@ -337,3 +429,55 @@
 		if (istype(M) && !isarchivist(M))
 			L += M
 	return L
+
+/obj/item/archivist_tool/staffacc/delay
+	name = "delaying staff addition"
+	desc = "Adds a delay to any effects of the archivist's staff."
+	icon_state = "delayacc"
+	staffname = "delay"
+	var/delay = 5 SECONDS
+
+/obj/item/archivist_tool/staffacc/delay/specialaction()
+	var/delays = input(user,"Delay of effect", text("Input")) as num|null
+	delay = min(20 SECONDS,round(delays*20))
+
+/obj/item/archivist_tool/staffacc/delay/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
+	if (acceffect == FALSE)
+		addtimer(CALLBACK(staff,/obj/item/archivist_tool/archivist_staff/proc/getfulleffect,target,user,TRUE),delay)
+		return 0
+	return power
+
+/obj/item/archivist_tool/staffacc/repeated
+	name = "repeating staff addition"
+	desc = "Adds a repeating to any effects of the archivist's staff."
+	icon_state = "repeatacc"
+	staffname = "repeat"
+
+/obj/item/archivist_tool/staffacc/repeated/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
+	if (acceffect >= 0.4)
+		addtimer(CALLBACK(staff,/obj/item/archivist_tool/archivist_staff/proc/getfulleffect,target,user,acceffect*0.75),2 SECONDS)
+		return power*0.5
+	return 0
+
+/obj/item/archivist_tool/staffacc/cdelay
+	name = "controlled staff addition"
+	desc = "Adds a controlled delay to any effects of the archivist's staff."
+	icon_state = "cdelayacc"
+	staffname = "cdelay"
+	var/dtarget = null
+	var/duser = null
+	var/obj/item/archivist_tool/archivist_staff/dstaff = null
+
+/obj/item/archivist_tool/staffacc/cdelay/specialaction()
+	if (dstaff && user)
+		dstaff.getfulleffect(dtarget,duser,TRUE)
+		dstaff = null
+		user = null
+
+/obj/item/archivist_tool/staffacc/cdelay/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
+	if (acceffect == FALSE)
+		duser = user
+		dtarget = target
+		dstaff = staff
+		return 0
+	return power*0.6
