@@ -13,6 +13,8 @@
 #define WIELD_STAFF_SINGLEHAND "single"
 #define WIELD_STAFF_TWOHAND "two"
 #define WIELD_STAFF_SWITCHHAND "switch"
+#define WIELD_STAFF_SMALLHAND "small"
+#define WIELD_STAFF_THROWHAND "throw"
 
 /obj/item/archivist_tool/archivist_staff
 	name = "archivist's staff"
@@ -20,46 +22,55 @@
 	icon_state = "coderhandle"
 	var/handlename = "coderwielded"
 	var/iswielded = FALSE
-	var/poweramp = 2
-	var/wieldedamp = 2
+	var/poweramp = 1
+	var/wieldedamp = 1
 	var/canbewielded = FALSE
 	var/staffeffect = WIELD_STAFF_SINGLEHAND
 	var/mustbewielded = FALSE
 	var/changeicon = FALSE
 	var/cooldown = FALSE
+	var/weightafter = WEIGHT_CLASS_BULKY
 	includeinlist = FALSE //testing
+	var/iscomplete = FALSE
+	var/mustbeinhands = TRUE
 	/*
 		top: major effect eg repulse, stun, sleep
 		middle: wield/onehanded/both
 		base: aoe/targeted/whole screen
 	*/
 	var/obj/item/archivist_tool/stafftop/top = null
+	var/hasbase = TRUE
 	var/obj/item/archivist_tool/staffbase/base = null
 	var/obj/item/archivist_tool/staffacc/acc = null
 
 /obj/item/archivist_tool/archivist_staff/attackby(obj/item/A, mob/user, params)
+	var/addedthing = FALSE
 	if (istype(A,/obj/item/archivist_tool/stafftop))
 		if (!top)
 			top = A
 			update_icon()
 			A.moveToNullspace()
 			to_chat(user, "<span class='notice'>You add the [A.name] to the [src.name].</span>")
-	if (istype(A,/obj/item/archivist_tool/staffbase))
+			addedthing = TRUE
+	if (istype(A,/obj/item/archivist_tool/staffbase) && hasbase)
 		if (!base)
 			base = A
 			update_icon()
 			A.moveToNullspace()
 			to_chat(user, "<span class='notice'>You add the [A.name] to the [src.name].</span>")
+			addedthing = TRUE
 	if (istype(A,/obj/item/archivist_tool/staffacc))
 		if (!acc)
 			acc = A
 			update_icon()
 			A.moveToNullspace()
 			to_chat(user, "<span class='notice'>You add the [A.name] to the [src.name].</span>")
-	if (top && base)
-		name = "[handlename] [base.staffname] [top.staffname] staff"
-		desc = "The most powerful tool that an archivist can have.[(canbewielded) ? "\nAlt click to wield/unwield." : ""]"
-		w_class = WEIGHT_CLASS_BULKY
+	if (addedthing)
+		if (top && (base || !hasbase))
+			name = "[handlename][hasbase ? " [base.staffname] " : " "][top.staffname] staff"
+			desc = "The most powerful tool that an archivist can have.[(canbewielded) ? "\nAlt click to wield/unwield." : ""]"
+			w_class = weightafter
+			iscomplete = TRUE
 	..()
 
 /obj/item/archivist_tool/archivist_staff/update_icon()
@@ -85,25 +96,30 @@
 	return 0
 
 /obj/item/archivist_tool/archivist_staff/proc/getfulleffect(mob/target,mob/user,acceffect)
+	if (mustbeinhands)
+		if (user.get_active_held_item() != src)
+			return
 	var/power = getpower()
-	if (power == 0)
+	if (power == 0 || !iscomplete)
 		return
 	playsound(loc,'sound/weapons/staffwave.ogg',50,1,-1)
 	if (acc)
 		power = acc.get_power_override(target,power,user,src,acceffect)
 		if (power == 0)
 			return
-	var/list/mobs = base.get_mobs(target,user)
+	var/dampen = (hasbase) ? base.get_dampen() : 1
+	var/list/mobs = (hasbase) ? base.get_mobs(target,user) : ((target && !isarchivist(target)) ? list(target) : list())
 	for (var/G in mobs)
-		top.effect_on_target(G,power*base.get_dampen(),user)
+		top.effect_on_target(G,power*dampen,user)
 	cooldown = TRUE
-	addtimer(CALLBACK(src,.proc/stopcooldown),15)
+	user.visible_message("<span class='danger'>[istype(user) ? "[user] slams the [src.name]" : "The [src.name] slams"] into [target ? target : "the floor"]!</span>")
+	addtimer(CALLBACK(src,.proc/stopcooldown),target ? 10 : 15)
 
 /obj/item/archivist_tool/archivist_staff/proc/stopcooldown()
 	cooldown = FALSE
 
 /obj/item/archivist_tool/archivist_staff/proc/unwield(mob/living/carbon/user)
-	if (!iswielded || !user) //copied, but it's edited
+	if (!iswielded || !user|| !iscomplete) //copied, but it's edited
 		return
 	iswielded = FALSE
 	to_chat(user,"<span class='notice'>You are now carrying [src] with one hand.</span>")
@@ -115,7 +131,7 @@
 		update_icon()
 
 /obj/item/archivist_tool/archivist_staff/proc/wield(mob/living/carbon/user)
-	if (iswielded || !canbewielded)
+	if (iswielded || !canbewielded || !iscomplete)
 		return
 	if (user.get_inactive_held_item())
 		to_chat(user,"<span class='warning'>You need your other hand to be empty!</span>")
@@ -155,13 +171,14 @@
 /obj/item/archivist_tool/archivist_staff/CtrlClick(mob/user)
 	..()
 	if (acc)
-		acc.specialaction()
+		acc.specialaction() //no cooldown stopping this
 
 /obj/item/archivist_tool/archivist_staff/attack_self(mob/user)
-	getfulleffect(null,user,0)
+	if (!cooldown)
+		getfulleffect(null,user,0)
 
 /obj/item/archivist_tool/archivist_staff/attack(mob/living/carbon/M,mob/living/carbon/user)
-	if (!cooldown)
+	if (!cooldown && M != user)
 		getfulleffect(M,user,0)
 
 
@@ -285,10 +302,8 @@
 	includeinlist = TRUE //testing
 
 /obj/item/archivist_tool/stafftop/tele/effect_on_target(mob/target,power,mob/user)
-	var/datum/effect_system/spark_spread/s = new /datum/effect_system/spark_spread
-	s.set_up(3,1,get_turf(src))
-	s.start()
-	do_teleport(target,locate(target.x + rand(round(10*power),round(15*power)),target.y + rand(round(10*power),round(15*power)),target.z), channel=null)
+	target.flash_lighting_fx(3, 3, rand(0,1) ? LIGHT_COLOR_ORANGE : LIGHT_COLOR_CYAN)
+	do_teleport(target,locate(target.x + rand(round(3*power),round(5*power)),target.y + rand(round(8*power),round(13*power)),target.z), channel=null)
 
 /obj/item/archivist_tool/stafftop/peace
 	name = "peace staff top"
@@ -317,9 +332,11 @@
 	if (low < 1)
 		low = 1
 	if (index < 1)
-		index = 1
+		index = 3
 	if (index > 5)
 		index = 5
+	if (low > 5)
+		low = 3
 	var/H = hallucinations[rand(low,index)]
 	new H(target)
 
@@ -332,9 +349,6 @@
 	canbewielded = FALSE
 	staffeffect = WIELD_STAFF_SINGLEHAND
 	includeinlist = TRUE
-
-/obj/item/archivist_tool/archivist_staff/single/AltClick(mob/user)
-	return
 
 /obj/item/archivist_tool/archivist_staff/switch
 	name = "switch staff handle"
@@ -359,6 +373,82 @@
 	mustbewielded = TRUE
 	staffeffect = WIELD_STAFF_TWOHAND
 	includeinlist = TRUE
+
+/obj/item/archivist_tool/archivist_staff/short
+	name = "short staff handle"
+	desc = "A short staff handle for the archivist's staff."
+	icon_state = "shorthandle"
+	handlename = "short"
+	poweramp = 0.5
+	hasbase = FALSE
+	canbewielded = FALSE
+	staffeffect = WIELD_STAFF_SMALLHAND
+	includeinlist = TRUE
+	weightafter = WEIGHT_CLASS_SMALL
+
+/obj/item/archivist_tool/archivist_staff/throw
+	name = "throwing staff handle"
+	desc = "A staff handle for throwing the archivist's staff. Use it inhand to link it to yourself."
+	icon_state = "throwhandle"
+	handlename = "throwing"
+	poweramp = 0.2
+	hasbase = FALSE
+	canbewielded = FALSE
+	staffeffect = WIELD_STAFF_THROWHAND
+	includeinlist = TRUE
+	weightafter = WEIGHT_CLASS_TINY
+	mustbeinhands = FALSE
+	var/mob/linkedperson = null
+	var/obj/effect/proc_holder/spell/targeted/archivistrecall/recallspell = null
+
+/obj/item/archivist_tool/archivist_staff/throw/attack_self(mob/user)
+	// no ..() because it's so small... how would you even stamp it against the floor
+	if (isarchivist(user) && !linkedperson && isliving(user))
+		for (var/spell in user.mind.spell_list)
+			if (istype(spell,/obj/effect/proc_holder/spell/targeted/archivistrecall))
+				return
+		linkedperson = user
+		recallspell = new /obj/effect/proc_holder/spell/targeted/archivistrecall()
+		recallspell.staff = src
+		user.mind.AddSpell(recallspell)
+		recallspell.action.button_icon = 'icons/mob/actions/backgrounds.dmi'
+		recallspell.action.background_icon_state = ACTION_BUTTON_DEFAULT_BACKGROUND
+		update_icon()
+
+/obj/item/archivist_tool/archivist_staff/throw/update_icon()
+	..()
+	if (recallspell)
+		var/old_layer = layer
+		var/old_plane = plane
+		layer = FLOAT_LAYER
+		plane = FLOAT_PLANE
+		recallspell.action.button.cut_overlays()
+		recallspell.action.button.add_overlay(src)
+		layer = old_layer
+		plane = old_plane
+
+/obj/item/archivist_tool/archivist_staff/throw/throw_impact(atom/hit)
+	..()
+	if (isliving(hit))
+		getfulleffect(hit,get_turf(src),FALSE)
+
+/obj/effect/proc_holder/spell/targeted/archivistrecall
+	name = "Recall Staff"
+	desc = "Recalls the archivist staff linked to you."
+	charge_max = 100
+	clothes_req = 0
+	range = -1
+	level_max = 0
+	cooldown_min = 100
+	include_user = 1
+	var/obj/staff = null
+
+/obj/effect/proc_holder/spell/targeted/archivistrecall/cast(list/targets,mob/user = usr)
+	if (staff)
+		for (var/mob/living/L in targets)
+			if (!L.put_in_hands(staff) && L)
+				staff.forceMove(get_turf(L.drop_location()))
+				return
 
 /obj/item/archivist_tool/staffbase/targeted
 	name = "targeted staff base"
@@ -415,7 +505,7 @@
 	includeinlist = TRUE
 
 /obj/item/archivist_tool/staffbase/screen/get_dampen()
-	return 0.25
+	return 0.15
 
 /obj/item/archivist_tool/staffbase/screen/get_mobs(mob/target,mob/user)
 	var/list/L = list()
@@ -435,11 +525,11 @@
 	desc = "Adds a delay to any effects of the archivist's staff."
 	icon_state = "delayacc"
 	staffname = "delay"
-	var/delay = 5 SECONDS
+	var/delay = 2 SECONDS
 
 /obj/item/archivist_tool/staffacc/delay/specialaction()
-	var/delays = input(user,"Delay of effect", text("Input")) as num|null
-	delay = min(20 SECONDS,round(delays*20))
+	var/delays = input(user,"Delay of effect in seconds", text("Input")) as num|null
+	delay = min(5 SECONDS,round(delays*20))
 
 /obj/item/archivist_tool/staffacc/delay/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
 	if (acceffect == FALSE)
@@ -454,30 +544,8 @@
 	staffname = "repeat"
 
 /obj/item/archivist_tool/staffacc/repeated/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
-	if (acceffect >= 0.4)
-		addtimer(CALLBACK(staff,/obj/item/archivist_tool/archivist_staff/proc/getfulleffect,target,user,acceffect*0.75),2 SECONDS)
-		return power*0.5
+	if (acceffect <= 0.3)
+		addtimer(CALLBACK(staff,/obj/item/archivist_tool/archivist_staff/proc/getfulleffect,target,user,(acceffect+0.1)),1 SECONDS)
+		return power*0.6
 	return 0
 
-/obj/item/archivist_tool/staffacc/cdelay
-	name = "controlled staff addition"
-	desc = "Adds a controlled delay to any effects of the archivist's staff."
-	icon_state = "cdelayacc"
-	staffname = "cdelay"
-	var/dtarget = null
-	var/duser = null
-	var/obj/item/archivist_tool/archivist_staff/dstaff = null
-
-/obj/item/archivist_tool/staffacc/cdelay/specialaction()
-	if (dstaff && user)
-		dstaff.getfulleffect(dtarget,duser,TRUE)
-		dstaff = null
-		user = null
-
-/obj/item/archivist_tool/staffacc/cdelay/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
-	if (acceffect == FALSE)
-		duser = user
-		dtarget = target
-		dstaff = staff
-		return 0
-	return power*0.6

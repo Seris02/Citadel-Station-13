@@ -78,7 +78,7 @@
 
 /obj/item/clothing/gloves/paralysis
 	name = "paralysis gloves"
-	desc = "These will paralyze anyone you touch with them for a few seconds, giving you quick escapes."
+	desc = "These will paralyze anyone you touch with them for a few seconds, giving you quick escapes. <b><font color='orange'>You can't hurt anyone with them on.</font></b>"
 	icon_state = "paralysis"
 	item_state = "paralysisgloves"
 	var/power = 1
@@ -91,7 +91,7 @@
 	if (recharging == TRUE)
 		to_chat(M, "<span class='warning'>The [src.name] are recharging, they can't be used.</span>")
 		return
-	if (M.a_intent == INTENT_HARM)
+	if (M.a_intent == INTENT_DISARM)
 		playsound(loc,'sound/weapons/egloves.ogg',50,1,-1)
 		target.Stun(200*power)
 		target.visible_message("<span class='danger'>[M] stuns [target] with the [src.name]!</span>","<span class='danger'>[M] has stunned you with the [src.name]!</span>")
@@ -110,6 +110,18 @@
 	recharging = FALSE
 	icon_state = initial(icon_state)
 	desc = initial(desc)
+
+/obj/item/clothing/gloves/paralysis/equipped(mob/living/carbon/human/user,slot)
+	. = ..()
+	if (slot == ITEM_SLOT_GLOVES)
+		ADD_TRAIT(user,TRAIT_PACIFISM,ABSTRACT_ITEM_TRAIT)
+		return
+	REMOVE_TRAIT(user,TRAIT_PACIFISM,ABSTRACT_ITEM_TRAIT)
+
+/obj/item/clothing/gloves/paralysis/dropped(mob/living/carbon/human/user)
+	..()
+	REMOVE_TRAIT(user,TRAIT_PACIFISM,ABSTRACT_ITEM_TRAIT)
+
 /*
 /obj/item/archivist_tool
 	name = "archivist_tool"
@@ -124,3 +136,4 @@
 	desc = "desc"
 	icon = 'icons/obj/archivist.dmi'
 	var/includeinlist = TRUE
+	var/chargecost = 1
