@@ -5,10 +5,13 @@
 #define EFFECT_STAFF_TELEPORT "teleport"
 #define EFFECT_STAFF_PEACE "peace"
 #define EFFECT_STAFF_HALLUCINOGEN "hallucinogen"
+#define EFFECT_STAFF_SLOW "slow"
+#define EFFECT_STAFF_BLIND "blind"
 
 #define TARGET_STAFF_SINGLE "single"
 #define TARGET_STAFF_AOE "aoe"
 #define TARGET_STAFF_SCREEN "screen"
+#define TARGET_STAFF_REMOTE "remote"
 
 #define WIELD_STAFF_SINGLEHAND "single"
 #define WIELD_STAFF_TWOHAND "two"
@@ -95,7 +98,9 @@
 		return (canbewielded == TRUE && iswielded == TRUE) ? wieldedamp  * poweramp : poweramp
 	return 0
 
-/obj/item/archivist_tool/archivist_staff/proc/getfulleffect(mob/target,mob/user,acceffect)
+/obj/item/archivist_tool/archivist_staff/proc/getfulleffect(mob/target,mob/user,acceffect,proximity = TRUE)
+	if ((!hasbase || hasbase && base.mustbenear) && !proximity)
+		return
 	if (mustbeinhands)
 		if (user.get_active_held_item() != src)
 			return
@@ -103,20 +108,21 @@
 	if (power == 0 || !iscomplete)
 		return
 	playsound(loc,'sound/weapons/staffwave.ogg',50,1,-1)
+	new /obj/effect/archivist_wave(user ? (target ? get_turf(target) : get_turf(user)) : get_turf(src))
+	var/cooldowns = target ? 10 : 15
 	if (acc)
-		power = acc.get_power_override(target,power,user,src,acceffect)
+		var/list/k = acc.get_power_override(target,power,user,src,acceffect)
+		power = k["power"]
+		cooldowns = k["cooldown"]
 		if (power == 0)
 			return
+	var/cooldownonbase = (hasbase) ? base.get_cooldown() : 1
 	var/dampen = (hasbase) ? base.get_dampen() : 1
 	var/list/mobs = (hasbase) ? base.get_mobs(target,user) : ((target && !isarchivist(target)) ? list(target) : list())
 	for (var/G in mobs)
 		top.effect_on_target(G,power*dampen,user)
-	cooldown = TRUE
 	user.visible_message("<span class='danger'>[istype(user) ? "[user] slams the [src.name]" : "The [src.name] slams"] into [target ? target : "the floor"]!</span>")
-	addtimer(CALLBACK(src,.proc/stopcooldown),target ? 10 : 15)
-
-/obj/item/archivist_tool/archivist_staff/proc/stopcooldown()
-	cooldown = FALSE
+	cooldown = world.time + cooldowns + cooldownonbase
 
 /obj/item/archivist_tool/archivist_staff/proc/unwield(mob/living/carbon/user)
 	if (!iswielded || !user|| !iscomplete) //copied, but it's edited
@@ -173,16 +179,33 @@
 	if (acc)
 		acc.specialaction() //no cooldown stopping this
 
+/obj/item/archivist_tool/archivist_staff/attack(mob/target,mob/user)
+	if (cooldown < world.time)
+		return ..()
+
 /obj/item/archivist_tool/archivist_staff/attack_self(mob/user)
-	if (!cooldown)
+	if (cooldown < world.time)
 		getfulleffect(null,user,0)
 
-/obj/item/archivist_tool/archivist_staff/attack(mob/living/carbon/M,mob/living/carbon/user)
-	if (!cooldown && M != user)
-		getfulleffect(M,user,0)
-
+/obj/item/archivist_tool/archivist_staff/afterattack(atom/target, mob/user, proximity_flag)
+	if(cooldown < world.time && isliving(target))
+		getfulleffect(target,user,FALSE,proximity = (proximity_flag == TRUE) ? TRUE : FALSE)
 
 //PARTS
+
+/obj/effect/archivist_wave
+	name = "wave"
+	icon = 'icons/effects/96x96.dmi'
+	pixel_x = -32
+	pixel_y = -32
+	icon_state = "archivist_wave"
+	light_power = 1.3
+	light_color = LIGHT_COLOR_CYAN
+	light_range = 3
+
+/obj/effect/archivist_wave/Initialize()
+	. = ..()
+	QDEL_IN(src, 5)
 
 /obj/item/archivist_tool/stafftop
 	name = "normal staff top"
@@ -205,6 +228,7 @@
 	desc = "error 404 base not found"
 	var/staffeffect = TARGET_STAFF_SINGLE
 	includeinlist = FALSE //testing
+	var/mustbenear = TRUE
 
 /obj/item/archivist_tool/staffbase/proc/get_dampen()
 	return 1
@@ -214,6 +238,9 @@
 
 /obj/item/archivist_tool/staffbase/proc/get_mobs(mob/target,mob/user)
 	return
+
+/obj/item/archivist_tool/staffbase/proc/get_cooldown()
+	return 0
 
 /obj/item/archivist_tool/staffacc
 	name = "normal staff addition"
@@ -228,7 +255,7 @@
 	return mutable_appearance('icons/obj/archivist.dmi', "[staffname]acc0")
 
 /obj/item/archivist_tool/staffacc/proc/get_power_override(mob/target,power,mob/user,var/obj/item/archivist_tool/archivist_staff/staff,acceffect)
-	return power
+	return list("power" = power, "cooldown" = target ? 10 : 15)
 
 /obj/item/archivist_tool/staffacc/proc/specialaction()
 	return
@@ -237,6 +264,7 @@
 
 /*TODOD:
 
+chemical warfare staff top?
 
 
 */
@@ -265,7 +293,8 @@
 	includeinlist = TRUE //testing
 
 /obj/item/archivist_tool/stafftop/repulse/effect_on_target(mob/target,power,mob/user)
-	var/atom/F = get_edge_target_turf(target,get_dir(user,get_step_away(target,user)))
+	var/dirtogo = get_turf(user) == get_turf(target) ? pick(GLOB.alldirs) : get_dir(user,get_step_away(target,user))
+	var/atom/F = get_edge_target_turf(target,dirtogo)
 	target.throw_at(F,round(10*power),1)
 
 /obj/item/archivist_tool/stafftop/attract
@@ -277,8 +306,9 @@
 	includeinlist = TRUE //testing
 
 /obj/item/archivist_tool/stafftop/attract/effect_on_target(mob/target,power,mob/user)
-	var/atom/F = get_edge_target_turf(target,get_dir(user,get_step_away(user,target)))
-	target.throw_at(F,min(round(10*power),get_dist(user,target) - 1),1)
+	var/dirtogo = get_turf(user) == get_turf(target) ? pick(GLOB.alldirs) : get_dir(user,get_step_away(user,target))
+	var/atom/F = get_edge_target_turf(target,dirtogo)
+	target.throw_at(F,min(round(10*power),max(get_dist(user,target) - 1,0)),1)
 
 /obj/item/archivist_tool/stafftop/sleep
 	name = "sleep staff top"
@@ -303,7 +333,7 @@
 
 /obj/item/archivist_tool/stafftop/tele/effect_on_target(mob/target,power,mob/user)
 	target.flash_lighting_fx(3, 3, rand(0,1) ? LIGHT_COLOR_ORANGE : LIGHT_COLOR_CYAN)
-	do_teleport(target,locate(target.x + rand(round(3*power),round(5*power)),target.y + rand(round(8*power),round(13*power)),target.z), channel=null)
+	do_teleport(target,locate(target.x + rand(round(-5*power),round(5*power)),target.y + rand(round(-5*power),round(5*power)),target.z), channel=null)
 
 /obj/item/archivist_tool/stafftop/peace
 	name = "peace staff top"
@@ -323,32 +353,65 @@
 	desc = "A top for forcing hallucinations in targets on an archivists's staff."
 	staffeffect = EFFECT_STAFF_HALLUCINOGEN
 	includeinlist = TRUE //testing
-	var/hallucinations = list(/datum/hallucination/stray_bullet,/datum/hallucination/fire,/datum/hallucination/oh_yeah,/datum/hallucination/shock,/datum/hallucination/death)
+	var/hallucinations = list(/datum/hallucination/delusion,/datum/hallucination/stray_bullet,/datum/hallucination/fire,/datum/hallucination/oh_yeah,/datum/hallucination/xeno_attack,/datum/hallucination/shock,/datum/hallucination/death)
 
 /obj/item/archivist_tool/stafftop/hallucination/effect_on_target(mob/target,power,mob/user)
-	//new /datum/hallucination/oh_yeah(target)
-	var/index = round(4*power) + 1
+	var/index = round(power)
 	var/low = index - 2
 	if (low < 1)
 		low = 1
 	if (index < 1)
 		index = 3
-	if (index > 5)
-		index = 5
-	if (low > 5)
-		low = 3
+	if (index > 7)
+		index = 7
+	if (low > 7)
+		low = 5
 	var/H = hallucinations[rand(low,index)]
 	new H(target)
+
+/obj/item/archivist_tool/stafftop/slowing
+	name = "slowing staff top"
+	icon_state = "slowingtop"
+	staffname = "slowing"
+	desc = "A top for forcing pacifism in targets on an archivists's staff."
+	staffeffect = EFFECT_STAFF_SLOW
+	includeinlist = TRUE //testing
+
+/obj/item/archivist_tool/stafftop/slowing/effect_on_target(mob/target,power,mob/user)
+	target.add_movespeed_modifier(MOVESPEED_ID_MOB_WALK_RUN_CONFIG_SPEED, TRUE, 100, override = TRUE, multiplicative_slowdown = 5*power)
+	addtimer(CALLBACK(target,/mob/proc/add_movespeed_modifier,MOVESPEED_ID_MOB_WALK_RUN_CONFIG_SPEED,1),5 SECONDS)
+
+/obj/item/archivist_tool/stafftop/blinding
+	name = "blinding staff top"
+	icon_state = "blindingtop"
+	staffname = "blinding"
+	desc = "A top for blurring the sight targets on an archivists's staff."
+	staffeffect = EFFECT_STAFF_BLIND
+	includeinlist = TRUE //testing
+
+/obj/item/archivist_tool/stafftop/blinding/effect_on_target(mob/target,power,mob/user)
+	if (power > 1)
+		target.adjust_blindness(10*power)
+	else
+		target.adjust_blurriness(5*power)
+	addtimer(CALLBACK(src,.proc/unblind,target,power),max((7 SECONDS)*power,3 SECONDS))
+
+/obj/item/archivist_tool/stafftop/blinding/proc/unblind(mob/target,power)
+	if (power > 1)
+		target.adjust_blindness(-(10*power))
+	else
+		target.adjust_blurriness(-(5*power))
 
 /obj/item/archivist_tool/archivist_staff/single
 	name = "single-handed staff handle"
 	desc = "A single-handed staff handle for the archivist's staff."
 	icon_state = "singlehandle"
 	handlename = "single-handed"
-	poweramp = 1.5
+	poweramp = 1.25
 	canbewielded = FALSE
 	staffeffect = WIELD_STAFF_SINGLEHAND
 	includeinlist = TRUE
+	weightafter = WEIGHT_CLASS_NORMAL
 
 /obj/item/archivist_tool/archivist_staff/switch
 	name = "switch staff handle"
@@ -373,6 +436,7 @@
 	mustbewielded = TRUE
 	staffeffect = WIELD_STAFF_TWOHAND
 	includeinlist = TRUE
+	weightafter = WEIGHT_CLASS_HUGE
 
 /obj/item/archivist_tool/archivist_staff/short
 	name = "short staff handle"
@@ -449,6 +513,8 @@
 			if (!L.put_in_hands(staff) && L)
 				staff.forceMove(get_turf(L.drop_location()))
 				return
+	else
+		user.RemoveSpell(src)
 
 /obj/item/archivist_tool/staffbase/targeted
 	name = "targeted staff base"
@@ -462,7 +528,7 @@
 	return 1
 
 /obj/item/archivist_tool/staffbase/targeted/get_mobs(mob/target,mob/user)
-	if (target && !isarchivist(target))
+	if (target && !isarchivist(target) && isliving(target))
 		return list(target)
 	return list()
 
@@ -475,8 +541,11 @@
 	includeinlist = TRUE //testing
 	var/radius = 3
 
+/obj/item/archivist_tool/staffbase/radial/get_cooldown()
+	return 2^radius
+
 /obj/item/archivist_tool/staffbase/radial/get_dampen()
-	return min(1,(1/radius)*1.5)
+	return min(1,(1/radius)*1.2)
 
 /obj/item/archivist_tool/staffbase/radial/get_mobs(mob/target,mob/user)
 	var/list/L = list()
@@ -495,6 +564,7 @@
 	..()
 	var/rad = input(user,"Radius of AoE", text("Input")) as num|null
 	radius = min(6,rad)
+	radius = radius < 1 ? 1 : radius
 
 /obj/item/archivist_tool/staffbase/screen
 	name = "bulky staff base"
@@ -506,6 +576,9 @@
 
 /obj/item/archivist_tool/staffbase/screen/get_dampen()
 	return 0.15
+
+/obj/item/archivist_tool/staffbase/screen/get_cooldown()
+	return 60
 
 /obj/item/archivist_tool/staffbase/screen/get_mobs(mob/target,mob/user)
 	var/list/L = list()
@@ -519,6 +592,27 @@
 		if (istype(M) && !isarchivist(M))
 			L += M
 	return L
+
+
+/obj/item/archivist_tool/staffbase/remote
+	name = "remote staff base"
+	icon_state = "remotebase"
+	staffname = "remote"
+	desc = "A base for an archivist's staff which targets the creature you aim at."
+	staffeffect = TARGET_STAFF_REMOTE
+	includeinlist = TRUE
+	mustbenear = FALSE
+
+/obj/item/archivist_tool/staffbase/remote/get_dampen()
+	return 0.3
+
+/obj/item/archivist_tool/staffbase/remote/get_cooldown()
+	return 40
+
+/obj/item/archivist_tool/staffbase/remote/get_mobs(mob/target,mob/user)
+	if (target && !isarchivist(target) && isliving(target))
+		return list(target)
+	return list()
 
 /obj/item/archivist_tool/staffacc/delay
 	name = "delaying staff addition"
@@ -534,8 +628,8 @@
 /obj/item/archivist_tool/staffacc/delay/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
 	if (acceffect == FALSE)
 		addtimer(CALLBACK(staff,/obj/item/archivist_tool/archivist_staff/proc/getfulleffect,target,user,TRUE),delay)
-		return 0
-	return power
+		return list("power" = 0, "cooldown" = target ? 10 : 15)
+	return list("power" = power*0.5, "cooldown" = target ? 10 : 15)
 
 /obj/item/archivist_tool/staffacc/repeated
 	name = "repeating staff addition"
@@ -544,8 +638,17 @@
 	staffname = "repeat"
 
 /obj/item/archivist_tool/staffacc/repeated/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
-	if (acceffect <= 0.3)
+	if (acceffect <= 0.2)
 		addtimer(CALLBACK(staff,/obj/item/archivist_tool/archivist_staff/proc/getfulleffect,target,user,(acceffect+0.1)),1 SECONDS)
-		return power*0.6
-	return 0
+		return list("power" = power*0.5, "cooldown" = target ? 10 : 15)
+	return list("power" = 0, "cooldown" = target ? 10 : 15)
 
+
+/obj/item/archivist_tool/staffacc/overcharged
+	name = "overcharged staff addition"
+	desc = "Adds a significant power increase to any effects of the archivist's staff in exchange for significant cooldown increase."
+	icon_state = "overchargedacc"
+	staffname = "overcharged"
+
+/obj/item/archivist_tool/staffacc/overcharged/get_power_override(mob/target,power,mob/user,obj/item/archivist_tool/archivist_staff/staff,acceffect)
+	return list("power" = power*3, "cooldown" = target ? 100 : 120)
