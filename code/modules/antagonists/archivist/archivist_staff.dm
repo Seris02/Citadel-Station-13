@@ -10,7 +10,7 @@
 
 #define TARGET_STAFF_SINGLE "single"
 #define TARGET_STAFF_AOE "aoe"
-#define TARGET_STAFF_SCREEN "screen"
+#define TARGET_STAFF_BULKY "bulky"
 #define TARGET_STAFF_REMOTE "remote"
 
 #define WIELD_STAFF_SINGLEHAND "single"
@@ -23,6 +23,9 @@
 	name = "archivist's staff"
 	desc = "The most powerful tool that an archivist can have."
 	icon_state = "coderhandle"
+	item_state = "singlehandle"
+	lefthand_file = 'icons/mob/inhands/antag/archivist_lefthand.dmi'
+	righthand_file = 'icons/mob/inhands/antag/archivist_righthand.dmi'
 	var/handlename = "coderwielded"
 	var/iswielded = FALSE
 	var/poweramp = 1
@@ -39,7 +42,7 @@
 	/*
 		top: major effect eg repulse, stun, sleep
 		middle: wield/onehanded/both
-		base: aoe/targeted/whole screen
+		base: aoe/targeted/whole bulky
 	*/
 	var/obj/item/archivist_tool/stafftop/top = null
 	var/hasbase = TRUE
@@ -191,6 +194,22 @@
 	if(cooldown < world.time && isliving(target))
 		getfulleffect(target,user,FALSE,proximity = (proximity_flag == TRUE) ? TRUE : FALSE)
 
+/obj/item/archivist_tool/archivist_staff/worn_overlays(isinhands,icon_file)
+	. = ..()
+	if (isinhands && iscomplete)
+		var/hand
+		message_admins("[isinhands] and [loc]")
+		if (ishuman(loc))
+			var/mob/living/carbon/human/H = loc
+			hand = H.get_item_for_held_index(1) == src ? "left" : "right"
+			if ((base && hasbase) || !hasbase)
+				. += base.get_worn_staff_overlay(hand)
+			if (top)
+				. += top.get_worn_staff_overlay(hand)
+		else
+			return
+
+
 //PARTS
 
 /obj/effect/archivist_wave
@@ -221,6 +240,12 @@
 /obj/item/archivist_tool/stafftop/proc/effect_on_target(mob/target, power,mob/user)
 	return
 
+/obj/item/archivist_tool/stafftop/proc/get_worn_staff_overlay(hand)
+	if (hand == "left")
+		return mutable_appearance('icons/mob/inhands/antag/archivist_lefthand.dmi', "[staffname]top")
+	if (hand == "right")
+		return mutable_appearance('icons/mob/inhands/antag/archivist_righthand.dmi', "[staffname]top")
+
 /obj/item/archivist_tool/staffbase
 	name = "normal staff base"
 	icon_state = "coderbase"
@@ -241,6 +266,12 @@
 
 /obj/item/archivist_tool/staffbase/proc/get_cooldown()
 	return 0
+
+/obj/item/archivist_tool/staffbase/proc/get_worn_staff_overlay(hand)
+	if (hand == "left")
+		return mutable_appearance('icons/mob/inhands/antag/archivist_lefthand.dmi', "[staffname]base")
+	if (hand == "right")
+		return mutable_appearance('icons/mob/inhands/antag/archivist_righthand.dmi', "[staffname]base")
 
 /obj/item/archivist_tool/staffacc
 	name = "normal staff addition"
@@ -418,6 +449,7 @@ chemical warfare staff top?
 	desc = "A single or double-handed staff handle for the archivist's staff."
 	icon_state = "switchhandle"
 	handlename = "switch-handed"
+	item_state = "switchhandle"
 	changeicon = TRUE
 	poweramp = 1
 	wieldedamp = 2
@@ -430,6 +462,7 @@ chemical warfare staff top?
 	desc = "A double-handed staff handle for the archivist's staff."
 	icon_state = "doublehandle"
 	handlename = "double-handed"
+	item_state = "doublehandle"
 	poweramp = 1
 	wieldedamp = 3
 	canbewielded = TRUE
@@ -443,6 +476,7 @@ chemical warfare staff top?
 	desc = "A short staff handle for the archivist's staff."
 	icon_state = "shorthandle"
 	handlename = "short"
+	item_state = "shorthandle"
 	poweramp = 0.5
 	hasbase = FALSE
 	canbewielded = FALSE
@@ -455,6 +489,7 @@ chemical warfare staff top?
 	desc = "A staff handle for throwing the archivist's staff. Use it inhand to link it to yourself."
 	icon_state = "throwhandle"
 	handlename = "throwing"
+	item_state = "throwhandle"
 	poweramp = 0.2
 	hasbase = FALSE
 	canbewielded = FALSE
@@ -566,21 +601,21 @@ chemical warfare staff top?
 	radius = min(6,rad)
 	radius = radius < 1 ? 1 : radius
 
-/obj/item/archivist_tool/staffbase/screen
+/obj/item/archivist_tool/staffbase/bulky
 	name = "bulky staff base"
-	icon_state = "screenbase"
-	staffname = "screen"
+	icon_state = "bulkybase"
+	staffname = "bulky"
 	desc = "A base for an archivist's staff which targets all creatures in a large radius."
-	staffeffect = TARGET_STAFF_SCREEN
+	staffeffect = TARGET_STAFF_BULKY
 	includeinlist = TRUE
 
-/obj/item/archivist_tool/staffbase/screen/get_dampen()
+/obj/item/archivist_tool/staffbase/bulky/get_dampen()
 	return 0.15
 
-/obj/item/archivist_tool/staffbase/screen/get_cooldown()
+/obj/item/archivist_tool/staffbase/bulky/get_cooldown()
 	return 60
 
-/obj/item/archivist_tool/staffbase/screen/get_mobs(mob/target,mob/user)
+/obj/item/archivist_tool/staffbase/bulky/get_mobs(mob/target,mob/user)
 	var/list/L = list()
 	var/mob/focus
 	if (target)
