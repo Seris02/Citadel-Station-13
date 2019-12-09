@@ -7,6 +7,7 @@
 	var/translate_binary = FALSE
 	var/syndie = FALSE
 	var/independent = FALSE
+	var/archivist = FALSE
 	var/list/channels = list()
 
 /obj/item/encryptionkey/Initialize()

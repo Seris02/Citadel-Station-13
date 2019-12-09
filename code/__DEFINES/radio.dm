@@ -46,6 +46,10 @@
 #define RADIO_KEY_CENTCOM "y"
 #define RADIO_TOKEN_CENTCOM ":y"
 
+#define RADIO_CHANNEL_ARCHIVIST "Archivist"
+#define RADIO_KEY_ARCHIVIST "r"
+#define RADIO_TOKEN_ARCHIVIST ":r"
+
 #define RADIO_CHANNEL_CTF_RED "Red Team"
 #define RADIO_CHANNEL_CTF_BLUE "Blue Team"
 
@@ -85,6 +89,8 @@
 #define FREQ_COMMON 1459  // Common comms frequency, dark green
 
 #define MAX_FREQ 1489 // ------------------------------------------------------
+
+#define FREQ_ARCHIVIST 1525  // Archivist frequency, orange
 
 #define MAX_FREE_FREQ 1599 // -------------------------------------------------
 

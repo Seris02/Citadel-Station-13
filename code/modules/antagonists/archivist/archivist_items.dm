@@ -1,3 +1,9 @@
+/*
+LITERALLY EVERYTHING TO DO WITH ARCHIVIST ITEMS IS STORED IN HERE. CLOTHING, ITEMS,
+ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
+
+*/
+
 /obj/item/card/id/archivist
 	name = "quantum card"
 	icon_state = "quantum"
@@ -6,7 +12,7 @@
 
 /obj/item/card/id/archivist/attack_self(mob/user)
 	access = get_all_accesses()+get_all_centcom_access()+get_all_syndicate_access()
-	addtimer(CALLBACK(src,.proc/erase,user),1 MINUTES)
+	addtimer(CALLBACK(src,.proc/erase,user),30 SECONDS)
 	to_chat(user, "<span class='warning'>The [src] starts shaking violently as it uses up the yellowspace crystals embedded on it's surface.</span>")
 	icon_state = "[icon_state]0"
 
@@ -82,6 +88,7 @@
 	icon_state = "paralysis"
 	item_state = "paralysisgloves"
 	var/power = 1
+	var/chargecost = 1
 	var/recharging = FALSE
 
 /obj/item/clothing/gloves/paralysis/Touch(mob/living/target,proximity=TRUE)
@@ -121,6 +128,168 @@
 /obj/item/clothing/gloves/paralysis/dropped(mob/living/carbon/human/user)
 	..()
 	REMOVE_TRAIT(user,TRAIT_PACIFISM,ABSTRACT_ITEM_TRAIT)
+
+/obj/item/clothing/neck/shifter
+	name = "molecular delocalising scarf"
+	desc = "A scarf that allows you to walk through walls for a very short period of time."
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "shifter"
+	var/wallwalkcooldown = 0
+	var/chargecost = 2
+	actions_types = list(/datum/action/item_action/molecularise)
+	var/cooldowntime = 3 MINUTES + 2 SECONDS
+	var/shiftcooldown = 0
+
+/obj/item/clothing/neck/shifter/ui_action_click(mob/living/carbon/user, action)
+	if (istype(user))
+		if (wallwalkcooldown < world.time && user.get_item_by_slot(SLOT_NECK) == src)
+			if (user.pulledby)
+				pulledby.stop_pulling()
+			LAZYADD(user.user_movement_hooks,src)
+			user.alpha = max(user.alpha - 100, 0)
+			addtimer(CALLBACK(src,.proc/unmolecularise,user),2 SECONDS)
+			if (cooldowntime)
+				wallwalkcooldown = world.time + cooldowntime
+
+/obj/item/clothing/neck/shifter/proc/unmolecularise(mob/living/carbon/user)
+	LAZYREMOVE(user.user_movement_hooks,src)
+	user.alpha = min(user.alpha + 100, 255)
+
+/obj/item/clothing/neck/shifter/intercept_user_move(dir,mob/living/m,newloc,oldloc)
+	if (shiftcooldown < world.time)
+		m.forceMove(newloc)
+		shiftcooldown = world.time + m.movement_delay()
+
+/obj/item/clothing/neck/shifter/debug
+	name = "debug archivist scarf"
+	cooldowntime = FALSE
+
+/obj/item/clothing/shoes/magboots/archivist
+	name = "high-power magboots"
+	desc = "Magboots that constantly slip you in between molecules around you, preventing anyone from pulling you."
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "archivistmag0"
+	magboot_state = "archivistmag"
+	slowdown_active = 3
+	var/chargecost = 1
+
+/obj/item/clothing/shoes/magboots/archivist/attack_self(mob/user)
+	if (magpulse)
+		user.anchored = FALSE
+	else
+		user.anchored = TRUE
+	..()
+
+/obj/item/clothing/shoes/magboots/archivist/equipped(mob/user, slot)
+	..()
+	if (slot == SLOT_SHOES && magpulse)
+		user.anchored = TRUE
+	else
+		user.anchored = FALSE
+
+
+/obj/item/clothing/shoes/magboots/archivist/dropped(mob/user)
+	..()
+	user.anchored = FALSE
+
+/obj/item/storage/box/archivist
+	name = "box of holding"
+	desc = "A box with yellowspace crystals embedded on it's surface."
+	illustration = null
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "boxholding"
+	foldable = null
+
+/obj/item/storage/box/archivist/ComponentInitialize()
+	. = ..()
+	var/datum/component/storage/STR = GetComponent(/datum/component/storage)
+	STR.max_items = 14
+	STR.max_combined_w_class = 20
+
+/obj/item/clothing/mask/archivist
+	name = "quantum soundwave alterer"
+	desc = "A gas mask that searches through all parallel universes to find someone with the name you select saying what you say."
+	var/voice = ""
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "archivistmask"
+	flags_cover = MASKCOVERSMOUTH
+	mutantrace_variation = MUTANTRACE_VARIATION
+
+/obj/item/clothing/mask/archivist/AltClick(mob/user)
+	voice = input(user,"Voice to disguise as", text("Input"))
+
+/obj/item/archivist_tool/energy
+	name = "energy conversion tool"
+	desc = "A device that converts any and all damage taken into a slight speed boost."
+	icon_state = "energy"
+	var/timeon = 0
+	var/speedcool = 0
+	var/ison = FALSE
+	var/cooldown = 0
+
+/obj/item/archivist_tool/energy/Destroy()
+	SSobj.processing -= src
+	return ..()
+
+/obj/item/archivist_tool/energy/attack_self(mob/user)
+	if (cooldown > world.time && !ison)
+		return ..()
+	if (ison)
+		START_PROCESSING(SSobj,src)
+		icon_state = "[initial(icon_state)]0"
+		timeon = world.time + 30 SECONDS
+	else
+		icon_state = initial(icon_state)
+		STOP_PROCESSING(SSobj,src)
+	ison = !ison
+	..()
+
+/obj/item/archivist_tool/energy/process()
+	if (timeon < world.time)
+		icon_state = initial(icon_state)
+		STOP_PROCESSING(SSobj,src)
+		cooldown = world.time + 1 MINUTES
+		return
+	if (iscarbon(loc))
+		var/mob/living/carbon/H = loc
+		var/gothealed = FALSE
+		if (H.getBruteLoss())
+			H.adjustBruteLoss(-min(1,H.getBruteLoss()))
+			gothealed = TRUE
+		if (H.getFireLoss())
+			H.adjustFireLoss(-min(1,H.getFireLoss()))
+			gothealed = TRUE
+		if (H.getOxyLoss())
+			H.adjustOxyLoss(-min(1,H.getOxyLoss()))
+			gothealed = TRUE
+		if (H.getToxLoss())
+			H.adjustToxLoss(-min(1,H.getToxLoss()))
+			gothealed = TRUE
+		if (gothealed && speedcool < world.time)
+			H.add_movespeed_modifier(MOVESPEED_ID_MOB_WALK_RUN_CONFIG_SPEED, TRUE, 100, override = TRUE, multiplicative_slowdown = 0.6)
+			speedcool = world.time + 2 SECONDS
+			addtimer(CALLBACK(H,/mob/proc/add_movespeed_modifier,MOVESPEED_ID_MOB_WALK_RUN_CONFIG_SPEED,1),2 SECONDS)
+
+/obj/item/radio/headset/heads/archivist
+	name = "archivist's headset"
+	desc = "The headset of an Archivist. <span color='#ff9900'>We hear everything.</span>"
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "archivistheadset"
+	archivist = TRUE
+	commandspan = SPAN_ARCHIVISTLOUD
+	keyslot = new /obj/item/encryptionkey/archivist
+
+/obj/item/encryptionkey/archivist
+	name = "archivist encryption key"
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "archivistcypherkey"
+	archivist = TRUE
+	independent = TRUE
+	channels = list(RADIO_CHANNEL_COMMON = 1/*in case you change the frequency*/, RADIO_CHANNEL_SYNDICATE = 1,RADIO_CHANNEL_COMMAND = 1, RADIO_CHANNEL_SECURITY = 1, RADIO_CHANNEL_ENGINEERING = 1, RADIO_CHANNEL_SCIENCE = 1, RADIO_CHANNEL_MEDICAL = 1, RADIO_CHANNEL_SUPPLY = 1, RADIO_CHANNEL_SERVICE = 1,RADIO_CHANNEL_CENTCOM = 1,RADIO_CHANNEL_AI_PRIVATE = 1, RADIO_CHANNEL_ARCHIVIST = 1)
+
+/obj/item/archivist_tool
+	name = "archivist_tool"
+	desc = "desc"
 
 /*
 /obj/item/archivist_tool

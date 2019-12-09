@@ -18,6 +18,8 @@
 		qdel(I)
 	archivist_tools += /obj/item/card/id/archivist
 	archivist_tools += /obj/item/clothing/gloves/paralysis
+	archivist_tools += /obj/item/clothing/neck/shifter
+	archivist_tools += /obj/item/clothing/shoes/magboots/archivist
 	for (var/A in archivist_tools)
 		var/obj/item/archivist_tool/I = new A
 		archivist_items += list(list("name" = I.name, "desc" = I.desc))

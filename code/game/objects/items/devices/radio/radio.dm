@@ -29,12 +29,14 @@
 	var/freqlock = FALSE  // Frequency lock to stop the user from untuning specialist radios.
 	var/use_command = FALSE  // If true, broadcasts will be large and BOLD.
 	var/command = FALSE  // If true, use_command can be toggled at will.
+	var/commandspan = SPAN_COMMAND //allow us to set what the fuck we want for headsets
 
 	// Encryption key handling
 	var/obj/item/encryptionkey/keyslot
 	var/translate_binary = FALSE  // If true, can hear the special binary channel.
 	var/independent = FALSE  // If true, can say/hear on the special CentCom channel.
 	var/syndie = FALSE  // If true, hears all well-known channels automatically, and can say/hear on the Syndicate channel.
+	var/archivist = FALSE // if true, can hear and talk on all channels
 	var/list/channels = list()  // Map from name (see communications.dm) to on/off. First entry is current department (:h).
 	var/list/secure_radio_connections
 
@@ -55,6 +57,7 @@
 	translate_binary = FALSE
 	syndie = FALSE
 	independent = FALSE
+	archivist = FALSE
 
 	if(keyslot)
 		for(var/ch_name in keyslot.channels)
@@ -67,6 +70,11 @@
 			syndie = TRUE
 		if(keyslot.independent)
 			independent = TRUE
+		if(keyslot.archivist)
+			archivist = TRUE
+			translate_binary = TRUE
+			independent = TRUE
+			syndie = TRUE
 
 	for(var/ch_name in channels)
 		secure_radio_connections[ch_name] = add_radio(src, GLOB.radiochannels[ch_name])
@@ -206,7 +214,7 @@
 		return
 
 	if(use_command)
-		spans |= SPAN_COMMAND
+		spans |= commandspan
 
 	/*
 	Roughly speaking, radios attempt to make a subspace transmission (which
@@ -245,7 +253,7 @@
 	var/datum/signal/subspace/vocal/signal = new(src, freq, speaker, language, message, spans)
 
 	// Independent radios, on the CentCom frequency, reach all independent radios
-	if (independent && (freq == FREQ_CENTCOM || freq == FREQ_CTF_RED || freq == FREQ_CTF_BLUE))
+	if (independent && (freq == FREQ_CENTCOM || freq == FREQ_CTF_RED || freq == FREQ_CTF_BLUE || freq == FREQ_ARCHIVIST))
 		signal.data["compression"] = 0
 		signal.transmission_method = TRANSMISSION_SUPERSPACE
 		signal.levels = list(0)  // reaches all Z-levels
@@ -295,6 +303,8 @@
 
 // Checks if this radio can receive on the given frequency.
 /obj/item/radio/proc/can_receive(freq, level)
+	if (archivist) //WE HEAR EVERYTHING
+		return TRUE
 	// deny checks
 	if (!on || !listening || wires.is_cut(WIRE_RX))
 		return FALSE

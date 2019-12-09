@@ -533,6 +533,10 @@
 		cooldown = world.time
 		owner.playsound_local(box, 'sound/misc/box_deploy.ogg', 50, TRUE)
 
+
+/datum/action/item_action/molecularise
+	name = "Molecularise"
+
 //Preset for spells
 /datum/action/spell_action
 	check_flags = 0

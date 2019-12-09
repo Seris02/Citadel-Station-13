@@ -21,6 +21,12 @@
 				return real_name
 		else
 			return real_name
+	if(istype(wear_mask, /obj/item/clothing/mask/archivist))
+		var/obj/item/clothing/mask/archivist/V = wear_mask
+		if (V.voice != "")
+			return V.voice
+		else
+			return real_name
 	if(mind)
 		var/datum/antagonist/changeling/changeling = mind.has_antag_datum(/datum/antagonist/changeling)
 		if(changeling && changeling.mimicing )
