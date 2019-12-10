@@ -327,13 +327,74 @@ ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
 	ison = !ison
 	..()
 */
-
+/*
 /obj/item/archivist_tool/slipspacepen //make a subtype of pens
 	name = "pen"
 	desc = "A normal black ink pen."
 	//works as a desync, except you can move, can't see anyone
 	//around you though, and you can move past them.
 	//same as scarf but only check for mobs.density on turf
+*/
+/obj/item/pen/slipspace
+	var/cooldown = 0
+	var/timeconcealed = 0
+	var/ison = FALSE
+	var/list/image/concealed = list()
+	var/mob/usercurrent
+
+/obj/item/pen/slipspace/attack_self(mob/user)
+	if (!ison)
+		to_chat(user,"<span class='notice'>You press the button on the pen and disappear into the yellowspace slipstream.</span>")
+		turnon(user)
+	else
+		to_chat(user,"<span class='notice'>You press the button on the pen and reappear from the yellowspace slipstream.</span>")
+		turnoff(user)
+	ison = !ison
+
+/obj/item/pen/slipspace/proc/turnon(mob/user)
+	for (var/mob/living/carbon/human/H in GLOB.alive_mob_list)
+		if (H == user)
+			continue
+		var/image/A = image('icons/effects/effects.dmi',H,"nothing")
+		A.name = ""
+		A.override = 1
+		if (user.client)
+			concealed |= A
+			user.client.images |= A
+	user.invisibility = INVISIBILITY_OBSERVER
+	LAZYADD(user.user_movement_hooks,src)
+	usercurrent = user
+
+/obj/item/pen/slipspace/proc/turnoff(mob/user)
+	LAZYREMOVE(user.user_movement_hooks,src)
+	user.invisibility = initial(user.invisibility)
+	if (user.client)
+		for (var/image/I in concealed)
+			user.client.images.Remove(I)
+	usercurrent = null
+
+/obj/item/pen/slipspace/Destroy()
+	if (ison)
+		turnoff(usercurrent)
+
+/obj/item/pen/slipspace/intercept_user_move(dir,mob/living/m,newloc,oldloc)
+	if (isturf(newloc))
+		var/turf/n = newloc
+		if (!n.CanPass(m,newloc))
+			return
+		for (var/M in newloc)
+			if (ismob(M))
+				continue
+			var/obj/F = M
+			if (!F.CanPass(m,newloc))
+				return
+		for (var/L in oldloc)
+			if (ismob(L))
+				continue
+			var/obj/J = L
+			if (!J.CanPass(m,oldloc))
+				return
+	m.forceMove(newloc)
 
 /obj/item/archivist_tool/portable_locker
 	name = "interdimensional pocket"
@@ -342,10 +403,6 @@ ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
 /obj/item/archivist_tool/soundbarrier
 	name = "soundwave propulsion device"
 	desc = "Creates a standing wave that gets pushed towards the target, forcing anything in it's way back."
-
-/obj/item/archivist_tool/
-	name = "archivist_tool"
-	desc = "desc"
 
 /*
 /obj/item/archivist_tool
