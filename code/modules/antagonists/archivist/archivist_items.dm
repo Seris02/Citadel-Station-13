@@ -234,7 +234,7 @@ ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
 /obj/item/archivist_tool/energy/attack_self(mob/user)
 	if (cooldown > world.time && !ison)
 		return ..()
-	if (ison)
+	if (!ison)
 		START_PROCESSING(SSobj,src)
 		icon_state = "[initial(icon_state)]0"
 		timeon = world.time + 30 SECONDS
@@ -286,8 +286,64 @@ ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
 	archivist = TRUE
 	independent = TRUE
 	channels = list(RADIO_CHANNEL_COMMON = 1/*in case you change the frequency*/, RADIO_CHANNEL_SYNDICATE = 1,RADIO_CHANNEL_COMMAND = 1, RADIO_CHANNEL_SECURITY = 1, RADIO_CHANNEL_ENGINEERING = 1, RADIO_CHANNEL_SCIENCE = 1, RADIO_CHANNEL_MEDICAL = 1, RADIO_CHANNEL_SUPPLY = 1, RADIO_CHANNEL_SERVICE = 1,RADIO_CHANNEL_CENTCOM = 1,RADIO_CHANNEL_AI_PRIVATE = 1, RADIO_CHANNEL_ARCHIVIST = 1)
+/*
+/obj/item/archivist_tool/darklight
+	name = "darklight"
+	desc = "A flashlight that extinguishes light near it instead of emitting light."
+	icon_state = "darklight"
+	var/list/objectsdarkened = list()
+	var/ison = FALSE
 
-/obj/item/archivist_tool
+/obj/item/archivist_tool/darklight/Destroy()
+	SSobj.processing -= src
+	return ..()
+
+/obj/item/archivist_tool/darklight/process()
+	var/list/objects = orange(4,src)
+	for (var/obj/item/D in objectsdarkened)
+		if (!(D in objects))
+			D.light_power = initial(D.light_power)
+			LAZYREMOVE(objectsdarkened,D)
+	for (var/H in objects)
+		if (isitem(H))
+			var/obj/item/S = H
+			if (S.light_range && S.light_power)
+				LAZYADD(objectsdarkened,S)
+				S.light_power = 0
+		if (isliving(H))
+			for (var/obj/item/O in H)
+				if(O.light_range && O.light_power)
+					LAZYADD(objectsdarkened,O)
+					O.light_power = 0
+
+
+/obj/item/archivist_tool/darklight/attack_self(mob/user)
+	if (!ison)
+		START_PROCESSING(SSobj,src)
+		icon_state = "[initial(icon_state)]0"
+	else
+		icon_state = initial(icon_state)
+		STOP_PROCESSING(SSobj,src)
+	ison = !ison
+	..()
+*/
+
+/obj/item/archivist_tool/slipspacepen //make a subtype of pens
+	name = "pen"
+	desc = "A normal black ink pen."
+	//works as a desync, except you can move, can't see anyone
+	//around you though, and you can move past them.
+	//same as scarf but only check for mobs.density on turf
+
+/obj/item/archivist_tool/portable_locker
+	name = "interdimensional pocket"
+	desc = "desc"
+
+/obj/item/archivist_tool/soundbarrier
+	name = "soundwave propulsion device"
+	desc = "Creates a standing wave that gets pushed towards the target, forcing anything in it's way back."
+
+/obj/item/archivist_tool/
 	name = "archivist_tool"
 	desc = "desc"
 
