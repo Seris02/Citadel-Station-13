@@ -362,12 +362,14 @@ ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
 			concealed |= A
 			user.client.images |= A
 	user.invisibility = INVISIBILITY_OBSERVER
+	user.see_invisible = SEE_INVISIBLE_OBSERVER
 	LAZYADD(user.user_movement_hooks,src)
 	usercurrent = user
 
 /obj/item/pen/slipspace/proc/turnoff(mob/user)
 	LAZYREMOVE(user.user_movement_hooks,src)
 	user.invisibility = initial(user.invisibility)
+	user.see_invisible = initial(user.see_invisible)
 	if (user.client)
 		for (var/image/I in concealed)
 			user.client.images.Remove(I)
@@ -396,14 +398,188 @@ ANYTHING IN THE ARCHIVIST TABLET EXCEPT THE STAFF IS IN HERE.
 				return
 	m.forceMove(newloc)
 
-/obj/item/archivist_tool/portable_locker
-	name = "interdimensional pocket"
-	desc = "desc"
-
 /obj/item/archivist_tool/soundbarrier
 	name = "soundwave propulsion device"
 	desc = "Creates a standing wave that gets pushed towards the target, forcing anything in it's way back."
 
+/obj/item/archivist_tool/tankminimizer
+	name = "tank minimizer"
+	desc = "Compresses internals tanks to the point they can be left to hang on masks easily."
+
+
+
+/obj/item/tank/internals/minimized
+	name = "minimized tank"
+	desc = "A tank of gas that has been extremely compressed."
+	volume = 50
+
+/obj/item/archivist_tool/solarpowerbeacon
+	name = "solar power beacon"
+	desc = "A wireless energy converter and transferrer for solar energy."
+	icon_state = "solarbeacon"
+	var/obj/item/clothing/shoes/solarboots/linkedboots
+
+/obj/item/archivist_tool/solarpowerbeacon/process()
+	if (linkedboots)
+		for (var/turf/T in view(3,src))
+			if (isspaceturf(T))
+				linkedboots.power = min(initial(linkedboots.power),linkedboots.power + 10)
+
+/obj/item/archivist_tool/solarpowerbeacon/Destroy()
+	SSobj.processing -= src
+	return ..()
+
+//and a beacon like stargazer that wirelessly connects for power
+/obj/item/clothing/shoes/solarboots //speed boost boots that use power
+	name = "solar converters"
+	desc = "Boots that take energy from the sun and convert it to energy. It has a removable power beacon."
+	var/power = 4000
+	var/ison = FALSE
+	var/setting = 1
+	icon = 'icons/obj/archivist.dmi'
+	icon_state = "solarboots"
+	slowdown = SHOES_SLOWDOWN
+	var/obj/item/archivist_tool/solarpowerbeacon/beacon
+	var/beaconattached = TRUE
+
+/obj/item/clothing/shoes/solarboots/Initialize()
+	..()
+	initbeacon()
+
+/obj/item/clothing/shoes/solarboots/proc/initbeacon()
+	if (!beacon)
+		beacon = new /obj/item/archivist_tool/solarpowerbeacon
+		beacon.linkedboots = src
+		START_PROCESSING(SSobj,beacon)
+		icon_state = "solarboots0"
+
+/obj/item/clothing/shoes/solarboots/proc/turnon()
+	slowdown = -1 * setting * 0.5
+	ison = TRUE
+	START_PROCESSING(SSobj,src)
+
+/obj/item/clothing/shoes/solarboots/proc/turnoff()
+	slowdown = SHOES_SLOWDOWN
+	ison = FALSE
+	STOP_PROCESSING(SSobj,src)
+
+/obj/item/clothing/shoes/solarboots/CtrlClick(mob/user)
+	if (beacon && beaconattached)
+		user.put_in_hands(beacon)
+		beaconattached = FALSE
+		icon_state = "solarboots"
+
+/obj/item/clothing/shoes/solarboots/attackby(obj/item/I, mob/user)
+	if (istype(I,/obj/item/archivist_tool/solarpowerbeacon))
+		if (!beaconattached && I == beacon)
+			user.transferItemToLoc(I,src)
+			beaconattached = TRUE
+			icon_state = "solarboots0"
+
+/obj/item/clothing/shoes/solarboots/AltClick(mob/user)
+	if (setting != 1 && setting != 2 && setting != 3)
+		setting = 1
+	switch(setting)
+		if (1)
+			setting = 2
+		if (2)
+			setting = 3
+		if (3)
+			setting = 1
+	if (ison)
+		slowdown = -1 * setting * 0.5
+	to_chat(user,"<span class='notice'>The boots are at a speed boost of [setting].</span>")
+
+/obj/item/clothing/shoes/solarboots/examine(mob/user)
+	..()
+	to_chat(user,"<span class='notice'>The boots are at a speed boost of [setting].</span>")
+	to_chat(user,"<span class='notice'>They are [round((power/initial(power))*100)]% charged.</span>")
+
+/obj/item/clothing/shoes/solarboots/process()
+	if (!ismob(loc))
+		turnoff()
+		return
+	if (ison)
+		if (power - (45 * setting) <= 0)
+			turnoff()
+			return
+		power -= 45 * setting
+
+/obj/item/clothing/shoes/solarboots/verb/toggle()
+	set name = "Toggle Solarboots"
+	set category = "Object"
+	set src in usr
+	if(!can_use(usr))
+		return
+	if (ison)
+		turnoff()
+	else
+		turnon()
+
+/obj/item/clothing/shoes/solarboots/Destroy()
+	if (ison)
+		turnoff()
+	SSobj.processing -= src
+	return ..()
+
+/obj/item/archivist_tool/soundbarrier
+	name = "soundwave ring"
+	desc = "A device that emits an extremely loud noise, deafening and stunning anyone who can hear it. Comes with earmuffs."
+	//small warning "You hear a light ringing."
+	//Narsie level archivist text "All you can feel is a wave of sound."
+
+/obj/item/archivist_tool/gravityslinger
+	name = "gravity slinger"
+	desc = "Like the gravity cannon, but better."
+
+/obj/item/archivist_tool/cameraglasses
+	name = "camera glasses"
+	desc = "The name says it all."
+
+/obj/item/holosign_creator/archivist
+	name = "archivist wall projector"
+	desc = "A holographic projector that creates holographic walls only archivists can pass through."
+	icon_state = "signmaker_archivist"
+	icon = 'icons/obj/archivist.dmi'
+	holosign_type = /obj/structure/holosign/barrier/archivist
+	creation_time = 0
+	max_signs = 4
+
+/obj/structure/holosign/barrier/archivist
+	name = "archivist wall"
+	desc = "A wall only archivists can pass through. Also works as a holofan."
+	icon_state = "holowall"
+	density = FALSE
+	anchored = TRUE
+	alpha = 150
+	CanAtmosPass = ATMOS_PASS_NO
+
+/obj/structure/holosign/barrier/archivist/CanPass(atom/movable/mover,turf/target)
+	if (isarchivist(mover))
+		return TRUE
+
+/obj/item/archivist_tool/swisstool
+	name = "swiss army tool"
+	desc = "A tool that has all the tools in it."
+	var/list/tools = list(/*all the tools in here, create in Initialize()*/)
+	var/obj/item/selected
+
+/obj/item/archivist_tool/hologramcapture
+	name = "hololight capturer"
+	desc = "A device that can store and create solograms, by scanning items/people."
+
+/obj/item/archivist_tool/hardlightbat
+	name = "hardlight bat"
+	desc = "A baseball bat that automatically fabricates hardlight baseballs."
+	//basically a kpa but with more time and still works normally
+
+/obj/item/archivist_tool/freezegun
+	name = "time freezer"
+	desc = "Freezes the target in a bluespace pocket, muting them and stopping them from doing anything."
+
+/obj/item/archivist_tool/
+	name = "archivist_tool"
+	desc = "desc"
 /*
 /obj/item/archivist_tool
 	name = "archivist_tool"
