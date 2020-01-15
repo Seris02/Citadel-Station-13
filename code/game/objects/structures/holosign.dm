@@ -93,6 +93,18 @@
 /obj/structure/holosign/barrier/firelock/blocksTemperature()
 	return TRUE
 
+/obj/structure/holosign/barrier/firefan
+	name = "holo firefan"
+	desc = "A holographic barrier resembling a fan. Though it does not prevent solid objects from passing through, temperature and gas changes are kept out."
+	icon_state = "holo_firelock"
+	density = FALSE
+	anchored = TRUE
+	alpha = 150
+	resistance_flags = FIRE_PROOF
+
+/obj/structure/holosign/barrier/firelock/blocksTemperature()
+	return TRUE
+
 /obj/structure/holosign/barrier/cyborg
 	name = "Energy Field"
 	desc = "A fragile energy field that blocks movement. Excels at blocking lethal projectiles."
