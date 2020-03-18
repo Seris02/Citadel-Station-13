@@ -75,19 +75,21 @@
 	quality = POSITIVE
 	difficulty = 16
 	instability = 5
-	locked = TRUE    // Default intert species for now, so locked from regular pool.
+	locked = TRUE    // Default inert species for now, so locked from regular pool.
 
 /datum/mutation/human/dwarfism/on_acquiring(mob/living/carbon/human/owner)
 	if(..())
 		return
-	owner.transform = owner.transform.Scale(1, 0.8)
+	owner.resize = 0.8
+	owner.update_transform()
 	owner.pass_flags |= PASSTABLE
 	owner.visible_message("<span class='danger'>[owner] suddenly shrinks!</span>", "<span class='notice'>Everything around you seems to grow..</span>")
 
 /datum/mutation/human/dwarfism/on_losing(mob/living/carbon/human/owner)
 	if(..())
 		return
-	owner.transform = owner.transform.Scale(1, 1.25)
+	owner.resize = 1.25
+	owner.update_transform()
 	owner.pass_flags &= ~PASSTABLE
 	owner.visible_message("<span class='danger'>[owner] suddenly grows!</span>", "<span class='notice'>Everything around you seems to shrink..</span>")
 
