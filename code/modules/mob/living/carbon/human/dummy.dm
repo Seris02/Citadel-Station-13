@@ -44,5 +44,6 @@ GLOBAL_LIST_EMPTY(dummy_mob_list)
 		return
 	var/mob/living/carbon/human/dummy/D = GLOB.human_dummy_list[slotnumber]
 	if(istype(D))
+		D.set_species(/datum/species/human, icon_update = TRUE, pref_load = TRUE) //for some reason this fixes certain things not showing (like spines and tails disappearing when you ask for a mannequin twice. if you change the species, it'll show up when you ask again)
 		D.wipe_state()
 		D.in_use = FALSE
